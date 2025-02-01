@@ -60,29 +60,27 @@ def getIPs():
     global ipv6_enabled
     global purgeUnknownRecords
     if ipv4_enabled:
-        try:
-            a = requests.get(
-                "https://1.1.1.1/cdn-cgi/trace").text.split("\n")
-            a.pop()
-            a = dict(s.split("=") for s in a)["ip"]
-        except Exception:
-            global shown_ipv4_warning
-            if not shown_ipv4_warning:
-                shown_ipv4_warning = True
-                print("🧩 IPv4 not detected via 1.1.1.1, trying 1.0.0.1")
-            # Try secondary IP check
+        ip_providers = [
+            "https://1.1.1.1/cdn-cgi/trace",
+            "https://1.0.0.1/cdn-cgi/trace",
+            "https://api.cloudflare.com/cdn-cgi/trace",
+            "https://www.cloudflare.com/cdn-cgi/trace",
+        ]
+        a = None
+        for provider in ip_providers:
+            print(f"🧩 Checking IPv4 via {provider}")
             try:
-                a = requests.get(
-                    "https://1.0.0.1/cdn-cgi/trace").text.split("\n")
-                a.pop()
-                a = dict(s.split("=") for s in a)["ip"]
+                contents = requests.get(provider).text.split("\n")
+                a = dict(s.split("=") for s in contents if "=" in s)["ip"]
             except Exception:
-                global shown_ipv4_warning_secondary
-                if not shown_ipv4_warning_secondary:
-                    shown_ipv4_warning_secondary = True
-                    print("🧩 IPv4 not detected via 1.0.0.1. Verify your ISP or DNS provider isn't blocking Cloudflare's IPs.")
-                if purgeUnknownRecords:
-                    deleteEntries("A")
+                print(f"🧩 IPv4 not detected via {provider}")
+            if a is not None:
+                print(f"🧩 IPv4 detected via {provider}: {a}")
+                break
+        if a is None:
+            print("🧩 Verify your ISP or DNS provider isn't blocking Cloudflare's IPs.")
+        if purgeUnknownRecords:
+            deleteEntries("A")
     if ipv6_enabled:
         try:
             aaaa = requests.get(
